@@ -1,12 +1,21 @@
 <?php
 $dbDriver = getenv('DB_DRIVER') ?: 'mysql';
 if ($dbDriver === 'pgsql') {
-    $dsn = 'pgsql:host=' . (getenv('DB_HOST') ?: 'localhost') . ';port=' . (getenv('DB_PORT') ?: '5432') . ';dbname=' . (getenv('DB_NAME') ?: 'postgres');
+    $pghost = getenv('DB_HOST') ?: getenv('PGHOST_UNPOOLED') ?: getenv('PGHOST') ?: 'localhost';
+    $dsn = 'pgsql:host=' . $pghost
+        . ';port=' . (getenv('DB_PORT') ?: getenv('PGPORT') ?: '5432')
+        . ';dbname=' . (getenv('DB_NAME') ?: getenv('PGDATABASE') ?: 'postgres');
+    if (strpos($pghost, 'neon.tech') !== false) {
+        $dsn .= ';options=endpoint=' . explode('.', $pghost)[0];
+    }
+    if (getenv('PGSSL') === '1' || getenv('DB_SSL') === '1') {
+        $dsn .= ';sslmode=require';
+    }
 } else {
     $dsn = 'mysql:host=' . (getenv('DB_HOST') ?: 'localhost') . ';dbname=' . (getenv('DB_NAME') ?: 'reparaciones') . ';charset=utf8mb4';
 }
 try {
-    $pdo = new PDO($dsn, getenv('DB_USER') ?: ($dbDriver === 'pgsql' ? 'postgres' : 'root'), getenv('DB_PASSWORD') ?: '');
+    $pdo = new PDO($dsn, getenv('DB_USER') ?: getenv('PGUSER') ?: ($dbDriver === 'pgsql' ? 'postgres' : 'root'), getenv('DB_PASSWORD') ?: getenv('PGPASSWORD') ?: '');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     die("Error de conexión: " . $e->getMessage());
