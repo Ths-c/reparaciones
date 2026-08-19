@@ -1,21 +1,41 @@
 <?php
 $dbDriver = getenv('DB_DRIVER') ?: 'mysql';
+$dbUser = null;
+$dbPass = null;
 if ($dbDriver === 'pgsql') {
-    $pghost = getenv('DB_HOST') ?: getenv('PGHOST_UNPOOLED') ?: getenv('PGHOST') ?: 'localhost';
-    $dsn = 'pgsql:host=' . $pghost
-        . ';port=' . (getenv('DB_PORT') ?: getenv('PGPORT') ?: '5432')
-        . ';dbname=' . (getenv('DB_NAME') ?: getenv('PGDATABASE') ?: 'postgres');
-    if (strpos($pghost, 'neon.tech') !== false) {
-        $dsn .= ';options=endpoint=' . explode('.', $pghost)[0];
-    }
-    if (getenv('PGSSL') === '1' || getenv('DB_SSL') === '1') {
+    $dbUrl = getenv('DB_URL') ?: getenv('DATABASE_URL_UNPOOLED') ?: getenv('POSTGRES_URL_NON_POOLING') ?: getenv('DATABASE_URL');
+    if ($dbUrl) {
+        $u = parse_url($dbUrl);
+        $dsn = 'pgsql:host=' . $u['host']
+            . ';port=' . (isset($u['port']) ? $u['port'] : 5432)
+            . ';dbname=' . ltrim($u['path'], '/')
+            . ';user=' . rawurldecode($u['user'])
+            . ';password=' . rawurldecode(isset($u['pass']) ? $u['pass'] : '');
+        if (strpos($u['host'], 'neon.tech') !== false) {
+            $dsn .= ';options=endpoint=' . explode('.', $u['host'])[0];
+        }
         $dsn .= ';sslmode=require';
+    } else {
+        $pghost = getenv('DB_HOST') ?: getenv('PGHOST_UNPOOLED') ?: getenv('PGHOST') ?: 'localhost';
+        $dsn = 'pgsql:host=' . $pghost
+            . ';port=' . (getenv('DB_PORT') ?: getenv('PGPORT') ?: '5432')
+            . ';dbname=' . (getenv('DB_NAME') ?: getenv('PGDATABASE') ?: 'postgres');
+        if (strpos($pghost, 'neon.tech') !== false) {
+            $dsn .= ';options=endpoint=' . explode('.', $pghost)[0];
+        }
+        if (getenv('PGSSL') === '1' || getenv('DB_SSL') === '1') {
+            $dsn .= ';sslmode=require';
+        }
+        $dbUser = getenv('DB_USER') ?: getenv('PGUSER') ?: 'postgres';
+        $dbPass = getenv('DB_PASSWORD') ?: getenv('PGPASSWORD') ?: '';
     }
 } else {
     $dsn = 'mysql:host=' . (getenv('DB_HOST') ?: 'localhost') . ';dbname=' . (getenv('DB_NAME') ?: 'reparaciones') . ';charset=utf8mb4';
+    $dbUser = getenv('DB_USER') ?: 'root';
+    $dbPass = getenv('DB_PASSWORD') ?: '';
 }
 try {
-    $pdo = new PDO($dsn, getenv('DB_USER') ?: getenv('PGUSER') ?: ($dbDriver === 'pgsql' ? 'postgres' : 'root'), getenv('DB_PASSWORD') ?: getenv('PGPASSWORD') ?: '');
+    $pdo = new PDO($dsn, $dbUser, $dbPass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     die("Error de conexión: " . $e->getMessage());
@@ -219,9 +239,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
             $_POST['tipo_equipo'], $_POST['marca'], $_POST['modelo'], $_POST['motivo'],
             !empty($_POST['secretaria_origen_id']) ? $_POST['secretaria_origen_id'] : null,
             !empty($_POST['oficina_origen_id']) ? $_POST['oficina_origen_id'] : null,
-            !empty($_POST['fecha_envio']) ? $_POST['fecha_envio'] : null, $_POST['tecnico'], $_POST['costo_estimado'],
-            $_POST['persona_presupuesto'], $_POST['fecha_presupuesto'], $_POST['numero_orden'],
-            $_POST['fecha_orden'], $_POST['estado'], $_POST['observaciones']
+            !empty($_POST['fecha_envio']) ? $_POST['fecha_envio'] : null,
+            $_POST['tecnico'],
+            $_POST['costo_estimado'] !== '' ? $_POST['costo_estimado'] : null,
+            $_POST['persona_presupuesto'],
+            !empty($_POST['fecha_presupuesto']) ? $_POST['fecha_presupuesto'] : null,
+            $_POST['numero_orden'],
+            !empty($_POST['fecha_orden']) ? $_POST['fecha_orden'] : null,
+            $_POST['estado'], $_POST['observaciones']
         ]);
         
         // Registrar movimiento de estado inicial
@@ -245,9 +270,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
             $_POST['tipo_equipo'], $_POST['marca'], $_POST['modelo'], $_POST['motivo'],
             !empty($_POST['secretaria_origen_id']) ? $_POST['secretaria_origen_id'] : null,
             !empty($_POST['oficina_origen_id']) ? $_POST['oficina_origen_id'] : null,
-            !empty($_POST['fecha_envio']) ? $_POST['fecha_envio'] : null, $_POST['tecnico'], $_POST['costo_estimado'],
-            $_POST['persona_presupuesto'], $_POST['fecha_presupuesto'], $_POST['numero_orden'],
-            $_POST['fecha_orden'], $_POST['estado'], $_POST['observaciones'], $_POST['id']
+            !empty($_POST['fecha_envio']) ? $_POST['fecha_envio'] : null,
+            $_POST['tecnico'],
+            $_POST['costo_estimado'] !== '' ? $_POST['costo_estimado'] : null,
+            $_POST['persona_presupuesto'],
+            !empty($_POST['fecha_presupuesto']) ? $_POST['fecha_presupuesto'] : null,
+            $_POST['numero_orden'],
+            !empty($_POST['fecha_orden']) ? $_POST['fecha_orden'] : null,
+            $_POST['estado'], $_POST['observaciones'], $_POST['id']
         ]);
         
         // Registrar movimiento de actualización de estado
