@@ -1,0 +1,6 @@
+backup
+database.sqlite
+database.sql
+setup_sqlite.php
+update_schema.php
+.git

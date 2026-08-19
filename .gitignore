@@ -1,0 +1,4 @@
+backup/
+database.sqlite
+node_modules/
+.vercel/
