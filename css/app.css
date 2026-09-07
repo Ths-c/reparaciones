@@ -1101,3 +1101,7 @@ body.modal-abierto { overflow: hidden; }
     .stat-card { padding: 12px 14px; }
     .motivo-cell { max-width: 160px; }
 }
+
+.over-scroll {
+    overflow-y: scroll;
+}

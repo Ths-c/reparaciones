@@ -708,7 +708,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
     <div class="modal fade" id="formModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <form method="POST" id="reparacionForm">
+                <form method="POST" id="reparacionForm" class="over-scroll">
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="fas fa-plus"></i> 
