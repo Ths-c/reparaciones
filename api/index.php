@@ -342,7 +342,7 @@ $stats = $pdo->query("SELECT
     COUNT(*) as total,
     SUM(CASE WHEN estado = 'Presupuestado' THEN 1 ELSE 0 END) as presupuestado,
     SUM(CASE WHEN estado = 'Enviado' THEN 1 ELSE 0 END) as enviado,
-    SUM(CASE WHEN estado = 'En reparación' THEN 1 ELSE 0 END) as en_reparacion,
+    SUM(CASE WHEN estado = 'Orden de compra' THEN 1 ELSE 0 END) as en_reparacion,
     SUM(CASE WHEN estado = 'Finalizado' THEN 1 ELSE 0 END) as finalizado
     FROM reparaciones")->fetch(PDO::FETCH_ASSOC);
 
@@ -449,7 +449,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                                 <span class="stat-label">Presupuestado</span>
                             </span>
                         </a>
-                        <a class="stat-card" href="?vista=reparaciones&filter_estado=<?php echo urlencode('En reparación'); ?>">
+                        <a class="stat-card" href="?vista=reparaciones&filter_estado=<?php echo urlencode('Orden de compra'); ?>">
                             <span class="stat-icon reparacion"><i class="fas fa-wrench"></i></span>
                             <span>
                                 <span class="stat-value"><?php echo $stats['en_reparacion']; ?></span>
@@ -479,7 +479,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                                         <option value="">Todos</option>
                                         <option value="Enviado" <?php echo (((isset($_GET['filter_estado']) ? $_GET['filter_estado'] : '') === 'Enviado') ? 'selected' : ''); ?>>Enviado</option>
                                         <option value="Presupuestado" <?php echo (((isset($_GET['filter_estado']) ? $_GET['filter_estado'] : '') === 'Presupuestado') ? 'selected' : ''); ?>>Presupuestado</option>
-                                        <option value="En reparación" <?php echo (((isset($_GET['filter_estado']) ? $_GET['filter_estado'] : '') === 'En reparación') ? 'selected' : ''); ?>>En reparación</option>
+                                        <option value="Orden de compra" <?php echo (((isset($_GET['filter_estado']) ? $_GET['filter_estado'] : '') === 'Orden de compra') ? 'selected' : ''); ?>>Orden de compra</option>
                                         <option value="Finalizado" <?php echo (((isset($_GET['filter_estado']) ? $_GET['filter_estado'] : '') === 'Finalizado') ? 'selected' : ''); ?>>Finalizado</option>
                                     </select>
                                 </div>
@@ -539,7 +539,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                                             'proyector' => 'fa-video',
                                             'monitor' => 'fa-tv',
                                         ];
-                                        $orden_estados = ['Enviado' => 1, 'Presupuestado' => 2, 'En reparación' => 3, 'Finalizado' => 4];
+                                        $orden_estados = ['Enviado' => 1, 'Presupuestado' => 2, 'Orden de compra' => 3, 'Finalizado' => 4];
                                         ?>
                                         <?php foreach ($reparaciones as $rep): ?>
                                             <?php
@@ -547,7 +547,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                                             switch ($rep['estado']) {
                                                 case 'Presupuestado': $badge_class = 'badge-presupuestado'; break;
                                                 case 'Enviado': $badge_class = 'badge-enviado'; break;
-                                                case 'En reparación': $badge_class = 'badge-en-reparacion'; break;
+                                                case 'Orden de compra': $badge_class = 'badge-en-reparacion'; break;
                                                 case 'Finalizado': $badge_class = 'badge-finalizado'; break;
                                             }
                                             $icono_tipo = isset($iconos_tipo[$rep['tipo_equipo']]) ? $iconos_tipo[$rep['tipo_equipo']] : 'fa-microchip';
@@ -799,7 +799,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                                         <select name="estado" id="estadoSelect" class="form-select" required onchange="mostrarCamposSegunEstado()">
                                             <option value="Enviado" <?php echo (((isset($edit_record['estado']) ? $edit_record['estado'] : 'Enviado') === 'Enviado') ? 'selected' : ''); ?>>Enviado</option>
                                             <option value="Presupuestado" <?php echo (((isset($edit_record['estado']) ? $edit_record['estado'] : '') === 'Presupuestado') ? 'selected' : ''); ?>>Presupuestado</option>
-                                            <option value="En reparación" <?php echo (((isset($edit_record['estado']) ? $edit_record['estado'] : '') === 'En reparación') ? 'selected' : ''); ?>>En reparación</option>
+                                            <option value="Orden de compra" <?php echo (((isset($edit_record['estado']) ? $edit_record['estado'] : '') === 'Orden de compra') ? 'selected' : ''); ?>>Orden de compra</option>
                                             <option value="Finalizado" <?php echo (((isset($edit_record['estado']) ? $edit_record['estado'] : '') === 'Finalizado') ? 'selected' : ''); ?>>Finalizado</option>
                                         </select>
                                     </div>
@@ -1065,8 +1065,8 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                 if(inputCosto) inputCosto.required = true;
                 if(inputFechaOrden) inputFechaOrden.required = true;
 
-            } else if (estado === 'En reparación') {
-                // En reparación: Técnico, Fecha Envío, Número de Orden
+            } else if (estado === 'Orden de compra') {
+                // Orden de compra: Técnico, Fecha Envío, Número de Orden
                 divTecnico.style.display = 'block';
                 divFechaEnvio.style.display = 'block';
                 divNumeroOrden.style.display = 'block';
@@ -1289,7 +1289,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
             const estados = {
                 'Presupuestado': 'badge-presupuestado',
                 'Enviado': 'badge-enviado',
-                'En reparación': 'badge-en-reparacion',
+                'Orden de compra': 'badge-en-reparacion',
                 'Finalizado': 'badge-finalizado'
             };
             
@@ -1298,12 +1298,12 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
             const formatearFecha = (fecha) => fecha ? new Date(fecha).toLocaleDateString('es-ES') : 'No definida';
             
             // Firma: ruta de reparación (timeline de 4 pasos)
-            const ordenRuta = ['Enviado', 'Presupuestado', 'En reparación', 'Finalizado'];
+            const ordenRuta = ['Enviado', 'Presupuestado', 'Orden de compra', 'Finalizado'];
             const pasoActual = ordenRuta.indexOf(registro.estado);
             const fechasRuta = {
                 'Enviado': registro.fecha_envio ? formatearFecha(registro.fecha_envio) : '',
                 'Presupuestado': registro.fecha_presupuesto ? formatearFecha(registro.fecha_presupuesto) : '',
-                'En reparación': registro.numero_orden ? 'Orden #' + registro.numero_orden : '',
+                'Orden de compra': registro.numero_orden ? 'Orden #' + registro.numero_orden : '',
                 'Finalizado': registro.fecha_orden ? formatearFecha(registro.fecha_orden) : ''
             };
             const rutaHtml = `
