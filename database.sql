@@ -39,3 +39,6 @@ CREATE TABLE IF NOT EXISTS reparaciones (
     FOREIGN KEY (secretaria_origen_id) REFERENCES secretarias(id) ON DELETE SET NULL,
     FOREIGN KEY (oficina_origen_id) REFERENCES oficinas_departamentos(id) ON DELETE SET NULL
 );
+
+-- Columna para almacenar el nombre del archivo PDF adjunto a cada reparación
+ALTER TABLE reparaciones ADD COLUMN pdf VARCHAR(255) DEFAULT NULL AFTER observaciones;

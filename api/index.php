@@ -233,7 +233,46 @@ $mensaje_error = '';
 // Agregar nuevo registro
 if (isset($_POST['action']) && $_POST['action'] === 'add') {
     try {
-        $sql = "INSERT INTO reparaciones (tipo_equipo, marca, modelo, motivo, secretaria_origen_id, oficina_origen_id, fecha_envio, tecnico, costo_estimado, persona_presupuesto, fecha_presupuesto, numero_orden, fecha_orden, estado, observaciones) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" . ($dbDriver === 'pgsql' ? " RETURNING id" : "");
+        $pdf_filename = null;
+        // Manejar subida de PDF
+        if (!empty($_FILES['pdf']['name']) && $_FILES['pdf']['error'] === UPLOAD_ERR_OK) {
+            $allowed_types = ['application/pdf'];
+            $max_size = 10 * 1024 * 1024; // 10MB
+            
+            if (!in_array($_FILES['pdf']['type'], $allowed_types) && !file_exists($_FILES['pdf']['tmp_name'])) {
+                $tmp_name = $_FILES['pdf']['tmp_name'];
+                $basename = basename($tmp_name);
+                $ext = pathinfo($basename, PATHINFO_EXTENSION);
+                if (!in_array(strtolower($ext), ['pdf'])) {
+                    // Intento de subir archivo no PDF - validar
+                }
+            }
+            
+            if ($_FILES['pdf']['size'] > $max_size) {
+                $pdf_filename = null;
+            } else {
+                // Crear directorio de subidas si no existe
+                $upload_dir = __DIR__ . '/uploads/reparaciones';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                
+                // Mover archivo usando el ID de la reparación (se obtendrá después del INSERT)
+                // Por ahora usaremos un nombre temporal y actualizaremos después
+                $pdf_tmp_name = $_FILES['pdf']['tmp_name'];
+                $pdf_basename = basename($_FILES['pdf']['name']);
+                $pdf_ext = strtolower(pathinfo($pdf_basename, PATHINFO_EXTENSION));
+                $pdf_filename = 'reparacion_' . uniqid() . '.' . $pdf_ext;
+                $pdf_destino = $upload_dir . '/' . $pdf_filename;
+                
+                if (move_uploaded_file($pdf_tmp_name, $pdf_destino)) {
+                    // Actualizar el filename después de obtener el ID de la reparación
+                    // Esto se hará después del INSERT
+                }
+            }
+        }
+        
+        $sql = "INSERT INTO reparaciones (tipo_equipo, marca, modelo, motivo, secretaria_origen_id, oficina_origen_id, fecha_envio, tecnico, costo_estimado, persona_presupuesto, fecha_presupuesto, numero_orden, fecha_orden, estado, observaciones, pdf) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" . ($dbDriver === 'pgsql' ? " RETURNING id" : "");
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $_POST['tipo_equipo'], $_POST['marca'], $_POST['modelo'], $_POST['motivo'],
@@ -246,7 +285,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
             !empty($_POST['fecha_presupuesto']) ? $_POST['fecha_presupuesto'] : null,
             $_POST['numero_orden'],
             !empty($_POST['fecha_orden']) ? $_POST['fecha_orden'] : null,
-            $_POST['estado'], $_POST['observaciones']
+            $_POST['estado'], $_POST['observaciones'], $pdf_filename
         ]);
         
         // Registrar movimiento de estado inicial
@@ -254,6 +293,17 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
         $sql_mov = "INSERT INTO movimientos (reparacion_id, tipo_movimiento, descripcion, usuario) VALUES (?, ?, ?, ?)";
         $stmt_mov = $pdo->prepare($sql_mov);
         $stmt_mov->execute([$reparacion_id, 'estado', 'Estado inicial: ' . $_POST['estado'], 'Sistema']);
+        
+        // Si se subió un PDF, moverlo al directorio definitivo usando el ID de la reparación
+        if ($pdf_filename !== null) {
+            $upload_dir = __DIR__ . '/uploads/reparaciones';
+            $pdf_definitivo = $upload_dir . '/reparacion_' . $reparacion_id . '.pdf';
+            // Renombrar usando el ID real
+            if (rename($upload_dir . '/' . $pdf_filename, $pdf_definitivo)) {
+                // Actualizar la base de datos con el nombre definitivo
+                $pdo->prepare("UPDATE reparaciones SET pdf = ? WHERE id = ?")->execute([$pdf_filename, $reparacion_id]);
+            }
+        }
         
         $mensaje_exito = "Reparación registrada exitosamente";
     } catch(PDOException $e) {
@@ -264,7 +314,40 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
 // Actualizar registro
 if (isset($_POST['action']) && $_POST['action'] === 'update') {
     try {
-        $sql = "UPDATE reparaciones SET tipo_equipo=?, marca=?, modelo=?, motivo=?, secretaria_origen_id=?, oficina_origen_id=?, fecha_envio=?, tecnico=?, costo_estimado=?, persona_presupuesto=?, fecha_presupuesto=?, numero_orden=?, fecha_orden=?, estado=?, observaciones=? WHERE id=?";
+        // Manejar subida de nuevo PDF (reemplazar el existente)
+        $pdf_filename = null;
+        if (!empty($_FILES['pdf']['name']) && $_FILES['pdf']['error'] === UPLOAD_ERR_OK) {
+            // Eliminar archivo PDF anterior si existe
+            $stmt_pdf = $pdo->prepare("SELECT pdf FROM reparaciones WHERE id = ?");
+            $stmt_pdf->execute([$_POST['id']]);
+            $pdf_anterior = $stmt_pdf->fetchColumn();
+            if ($pdf_anterior && file_exists(__DIR__ . '/uploads/reparaciones/' . $pdf_anterior)) {
+                unlink(__DIR__ . '/uploads/reparaciones/' . $pdf_anterior);
+            }
+            
+            // Validar y guardar nuevo archivo
+            $allowed_types = ['application/pdf'];
+            $max_size = 10 * 1024 * 1024; // 10MB
+            
+            if ($_FILES['pdf']['size'] <= $max_size) {
+                $upload_dir = __DIR__ . '/uploads/reparaciones';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0755, true);
+                }
+                
+                $pdf_basename = basename($_FILES['pdf']['name']);
+                $pdf_ext = strtolower(pathinfo($pdf_basename, PATHINFO_EXTENSION));
+                if (in_array($pdf_ext, ['pdf'])) {
+                    $pdf_filename = 'reparacion_' . $_POST['id'] . '.' . $pdf_ext;
+                    $pdf_destino = $upload_dir . '/' . $pdf_filename;
+                    if (move_uploaded_file($_FILES['pdf']['tmp_name'], $pdf_destino)) {
+                        // Se guardará el filename en la UPDATE abajo
+                    }
+                }
+            }
+        }
+        
+        $sql = "UPDATE reparaciones SET tipo_equipo=?, marca=?, modelo=?, motivo=?, secretaria_origen_id=?, oficina_origen_id=?, fecha_envio=?, tecnico=?, costo_estimado=?, persona_presupuesto=?, fecha_presupuesto=?, numero_orden=?, fecha_orden=?, estado=?, observaciones=?, pdf=? WHERE id=?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $_POST['tipo_equipo'], $_POST['marca'], $_POST['modelo'], $_POST['motivo'],
@@ -277,7 +360,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
             !empty($_POST['fecha_presupuesto']) ? $_POST['fecha_presupuesto'] : null,
             $_POST['numero_orden'],
             !empty($_POST['fecha_orden']) ? $_POST['fecha_orden'] : null,
-            $_POST['estado'], $_POST['observaciones'], $_POST['id']
+            $_POST['estado'], $_POST['observaciones'], $pdf_filename, $_POST['id']
         ]);
         
         // Registrar movimiento de actualización de estado
@@ -1412,6 +1495,14 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
                         ${campoDetalle('Persona Responsable', registro.persona_presupuesto || 'No especificada')}
                         ${campoDetalle('Observaciones', registro.observaciones ? registro.observaciones : 'Ninguna')}
                     </div>
+                    ${registro.pdf ? `
+                    <div class="det-seccion">
+                        <h6><i class="fas fa-file-pdf"></i> PDF Adjunto</h6>
+                        <a href="/reparaciones/uploads/reparaciones/${registro.pdf}" target="_blank" class="btn btn-info w-100">
+                            <i class="fas fa-download"></i> Ver/Descargar PDF
+                        </a>
+                    </div>
+                    ` : ''}
                 </div>
                 
                 <div class="box-soft">
