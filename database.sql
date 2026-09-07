@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS reparaciones_db;
-USE reparaciones_db;
+CREATE DATABASE IF NOT EXISTS reparaciones;
+USE reparaciones;
 
 -- Tabla de Secretarías
 CREATE TABLE IF NOT EXISTS secretarias (
