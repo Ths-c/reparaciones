@@ -239,13 +239,14 @@ if (isset($_POST['action']) && $_POST['action'] === 'add') {
             $allowed_types = ['application/pdf'];
             $max_size = 10 * 1024 * 1024; // 10MB
             
-            if (!in_array($_FILES['pdf']['type'], $allowed_types) && !file_exists($_FILES['pdf']['tmp_name'])) {
-                $tmp_name = $_FILES['pdf']['tmp_name'];
-                $basename = basename($tmp_name);
-                $ext = pathinfo($basename, PATHINFO_EXTENSION);
-                if (!in_array(strtolower($ext), ['pdf'])) {
-                    // Intento de subir archivo no PDF - validar
-                }
+            // Validar tipo de archivo (usar extensión como respaldo ya que el MIME type del navegador es poco fiable)
+            $pdf_basename = basename($_FILES['pdf']['name']);
+            $pdf_ext = strtolower(pathinfo($pdf_basename, PATHINFO_EXTENSION));
+            $type_valid = in_array($pdf_ext, ['pdf']) || in_array($_FILES['pdf']['type'], $allowed_types);
+            
+            if (! $type_valid) {
+                $mensaje_error = 'Solo se permiten archivos PDF';
+                exit;
             }
             
             if ($_FILES['pdf']['size'] > $max_size) {
@@ -329,20 +330,25 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
             $allowed_types = ['application/pdf'];
             $max_size = 10 * 1024 * 1024; // 10MB
             
-            if ($_FILES['pdf']['size'] <= $max_size) {
+            // Validar tipo de archivo (usar extensión como respaldo)
+            $pdf_basename = basename($_FILES['pdf']['name']);
+            $pdf_ext = strtolower(pathinfo($pdf_basename, PATHINFO_EXTENSION));
+            $type_valid = in_array($pdf_ext, ['pdf']) || in_array($_FILES['pdf']['type'], $allowed_types);
+            
+            if (!$type_valid) {
+                $pdf_filename = null;
+            } elseif ($_FILES['pdf']['size'] > $max_size) {
+                $pdf_filename = null;
+            } else {
                 $upload_dir = __DIR__ . '/uploads/reparaciones';
                 if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0755, true);
                 }
                 
-                $pdf_basename = basename($_FILES['pdf']['name']);
-                $pdf_ext = strtolower(pathinfo($pdf_basename, PATHINFO_EXTENSION));
-                if (in_array($pdf_ext, ['pdf'])) {
-                    $pdf_filename = 'reparacion_' . $_POST['id'] . '.' . $pdf_ext;
-                    $pdf_destino = $upload_dir . '/' . $pdf_filename;
-                    if (move_uploaded_file($_FILES['pdf']['tmp_name'], $pdf_destino)) {
-                        // Se guardará el filename en la UPDATE abajo
-                    }
+                $pdf_filename = 'reparacion_' . $_POST['id'] . '.' . $pdf_ext;
+                $pdf_destino = $upload_dir . '/' . $pdf_filename;
+                if (!move_uploaded_file($_FILES['pdf']['tmp_name'], $pdf_destino)) {
+                    $pdf_filename = null;
                 }
             }
         }
@@ -791,7 +797,7 @@ $oficinas = $pdo->query("SELECT o.*, $aggNombre as secretaria_nombre, $aggIds as
     <div class="modal fade" id="formModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <form method="POST" id="reparacionForm" class="over-scroll">
+                <form method="POST" id="reparacionForm" class="over-scroll" enctype="multipart/form-data">
                     <div class="modal-header">
                         <h5 class="modal-title">
                             <i class="fas fa-plus"></i> 
